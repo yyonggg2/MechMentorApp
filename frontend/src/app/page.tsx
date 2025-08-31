@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import ReactMarkdown from 'react-markdown';
+import Link from 'next/link';
+import Image from 'next/image';
 
 // --- Data Interfaces ---
 interface Term {
@@ -113,8 +115,7 @@ export default function Home() {
   const [isTermLoading, setIsTermLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Your analysis will appear here.");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [originalText, setOriginalText] = useState<string>(""); // This will be removed in a later step, but is kept for now to avoid breaking changes
+  const [jobId, setJobId] = useState<string | null>(null); // Keep track of the analysis job
   const [diagramUrl, setDiagramUrl] = useState<string | null>(null);
 
   const documentInputRef = useRef<HTMLInputElement>(null);
@@ -148,8 +149,8 @@ export default function Home() {
         if (!signal.aborted) {
           setTermExplanation(result);
         }
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
           console.error("Error fetching explanation:", error);
           setTermExplanation({
             explanation: `Failed to load explanation for ${selectedTerm}.`,
@@ -171,7 +172,7 @@ export default function Home() {
     return () => {
       controller.abort();
     };
-  }, [selectedTerm]);
+  }, [selectedTerm, apiUrl]);
 
   // --- Data Fetching ---
   const pollJobStatus = (id: string) => {
@@ -193,10 +194,14 @@ export default function Home() {
           setIsLoading(false);
           setStatusMessage(`Analysis failed: ${data.error}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         clearInterval(interval);
         setIsLoading(false);
-        setStatusMessage("Failed to get job status.");
+        if (error instanceof Error) {
+          setStatusMessage(`Failed to get job status: ${error.message}`);
+        } else {
+          setStatusMessage("Failed to get job status due to an unknown error.");
+        }
       }
     }, 3000);
   };
@@ -240,9 +245,13 @@ export default function Home() {
       setJobId(job_id);
       setStatusMessage("Analysis in progress... This may take a moment.");
       pollJobStatus(job_id);
-    } catch (error: any) {
+    } catch (error) {
       setIsLoading(false);
-      setStatusMessage(`Error: ${error.message}`);
+      if (error instanceof Error) {
+        setStatusMessage(`Error: ${error.message}`);
+      } else {
+        setStatusMessage("An unknown error occurred during analysis.");
+      }
     }
   };
 
@@ -266,19 +275,20 @@ export default function Home() {
       } else {
         alert(`Failed to save term: ${response.data.detail || 'Unknown error'}`);
       }
-    } catch (error: any) {
-      console.error("Full Axios Error:", error);
-      if (error.response) {
-        console.error("Axios Response Data:", error.response.data);
-        console.error("Axios Response Status:", error.response.status);
-        console.error("Axios Response Headers:", error.response.headers);
-        alert(`Error: ${error.response.data.detail || error.message}`);
-      } else if (error.request) {
-        console.error("Axios Request Data:", error.request);
+    } catch (error) {
+      const axiosError = error as AxiosError<{ detail?: string }>;
+      console.error("Full Axios Error:", axiosError);
+      if (axiosError.response) {
+        console.error("Axios Response Data:", axiosError.response.data);
+        console.error("Axios Response Status:", axiosError.response.status);
+        console.error("Axios Response Headers:", axiosError.response.headers);
+        alert(`Error: ${axiosError.response.data?.detail || axiosError.message}`);
+      } else if (axiosError.request) {
+        console.error("Axios Request Data:", axiosError.request);
         alert("Error: The server did not respond. Please check if it's running.");
       } else {
-        console.error('Error Message:', error.message);
-        alert(`An unexpected error occurred: ${error.message}`);
+        console.error('Error Message:', axiosError.message);
+        alert(`An unexpected error occurred: ${axiosError.message}`);
       }
     }
   };
@@ -320,7 +330,7 @@ export default function Home() {
 
     const regex = new RegExp(`(${validTerms.map(escapeRegExp).join("|")})`, "gi");
     
-    const html = text.replace(/\n/g, '<br />').split(regex).map((part, index) => {
+    const html = text.replace(/\n/g, '<br />').split(regex).map((part) => {
         if (typeof part !== 'string') return '';
         const lowerCasePart = part.toLowerCase();
         const matchingTerm = validTerms.find(term => term.toLowerCase() === lowerCasePart);
@@ -353,11 +363,11 @@ export default function Home() {
           <h1 className="text-2xl font-semibold text-gray-700">
             AI Mechanical Mentor
           </h1>
-          <a href="/notebook" className="text-gray-500 hover:text-gray-800">
+          <Link href="/notebook" className="text-gray-500 hover:text-gray-800" title="View Notebook">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -396,7 +406,7 @@ export default function Home() {
                   <div className="mt-8">
                     <h3 className="text-xl font-semibold border-b pb-2 mb-4">Diagram Analysis</h3>
                     <div className="relative">
-                      <img src={diagramUrl} alt="Uploaded Diagram" className="w-full h-auto rounded-lg" />
+                      <Image src={diagramUrl} alt="Uploaded Diagram" className="w-full h-auto rounded-lg" width={800} height={600} priority />
                       <svg className="absolute top-0 left-0 w-full h-full">
                         {calculateLabelPositions(analysis.diagram_labels).map((label, index) => {
                           const color = vibrantColors[index % vibrantColors.length];

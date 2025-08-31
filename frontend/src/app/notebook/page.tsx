@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 
 // --- Data Interfaces ---
 interface Link {
@@ -29,7 +30,7 @@ export default function Notebook() {
   const [terms, setTerms] = useState<Term[]>([]);
   const [selectedTerm, setSelectedTerm] = useState<Term | null>(null);
 
-  const fetchTerms = async () => {
+  const fetchTerms = useCallback(async () => {
     try {
       const response = await fetch(`${apiUrl}/terms/`);
       if (response.ok) {
@@ -39,11 +40,11 @@ export default function Notebook() {
     } catch (error) {
       console.error("Failed to fetch terms:", error);
     }
-  };
+  }, [apiUrl]);
 
   useEffect(() => {
     fetchTerms();
-  }, []);
+  }, [fetchTerms]);
 
   const parseAnalysis = (analysisString: string): TermExplanation | null => {
     try {
@@ -72,9 +73,9 @@ export default function Notebook() {
           <h1 className="text-2xl font-semibold text-gray-700">
             Terminology Notebook
           </h1>
-          <a href="/" className="text-blue-500 hover:underline">
+          <Link href="/" className="text-blue-500 hover:underline">
             &larr; Back to Analysis
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -99,7 +100,7 @@ export default function Notebook() {
             </ul>
           ) : (
             <p className="text-gray-600">
-              Your saved terms will appear here. Click "Save to Notebook" on the analysis page to add one.
+              Your saved terms will appear here. Click 'Save to Notebook' on the analysis page to add one.
             </p>
           )}
         </div>
