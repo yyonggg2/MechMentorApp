@@ -1,0 +1,17 @@
+# Environment variables
+.env
+*.env.local
+
+# Secrets
+aimechmentor-3ff4e6c27f2a.json
+backend/GOOGLE_APPLICATION_CREDENTIALS.json
+
+# Database
+mech_mentor.db
+
+# Python
+__pycache__/
+*.pyc
+
+# VSCode
+.vscode/
