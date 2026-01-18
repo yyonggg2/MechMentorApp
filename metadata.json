@@ -1,0 +1,5 @@
+{
+  "name": "MechMentor AI",
+  "description": "An interactive mechanical engineering education platform that analyzes technical diagrams and documents using AI to explain complex robotics components and terminology.",
+  "requestFramePermissions": []
+}

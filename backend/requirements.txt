@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-python-multipart
-google-generativeai
-google-cloud-vision
-SQLAlchemy
-Pillow
